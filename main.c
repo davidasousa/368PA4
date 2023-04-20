@@ -2,190 +2,261 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <stdbool.h>
+#include <string.h>
 #include "hbt.h"
+#include "functions.h"
+
+static Tnode* make_Tnode(int val)
+{
+    Tnode* new_tnode = malloc(sizeof(*new_tnode));
+    *new_tnode = (Tnode){.key = val, .balance = 0, .left = NULL, .right = NULL};
+    return new_tnode;     
+}
 
 static void print_tree(Tnode* head)
 {
     if(head == NULL)
         return;
 
+    char links = 0;
+    if(head -> right != NULL)
+        links += 1;
+    if(head -> left != NULL)
+        links += 2;
+
+    printf("%d", head -> key);
+    printf(" BAL %d Links %d\n", head -> balance, links);
+
     print_tree(head -> left);
-    printf("%d Bal: %d\n", head -> key, head -> balance);
     print_tree(head -> right);
 
     return;
-}
-
-static Tnode* CR(Tnode* ya)
-{
-    Tnode* A = ya;
-    Tnode* B = ya -> left;
-    Tnode* T2 = B -> right;
-
-    B -> right = A;
-    A -> left = T2;
-
-    return B;
-}
-
-static Tnode* CCR(Tnode* ya)
-{
-    Tnode* A = ya;
-    Tnode* B = ya -> right;
-    Tnode* T2 = ya -> right -> left;
-
-    B -> left = A;
-    A -> right = T2;
-
-    return B;
-}
-
-static Tnode* insert_to_tree(Tnode* new_node, Tnode* head)
-{
-    Tnode* pya = NULL;
-    Tnode* ya = head;
-    Tnode* curr = head;
-    Tnode* pcurr = NULL;
-    Tnode* q = NULL;
-    bool top_level = false;
-
-    while(curr != NULL)
-    {
-        if(new_node -> key > curr -> key)
-            q = curr -> right;
-        else
-            q = curr -> left;
-
-        // Update Youngest Ancestor
-        
-        if(q != NULL && q -> balance != 0)
-        {
-            pya = curr;
-            ya = q;
-        }
-        
-        pcurr = curr;
-        curr = q;
-    }
-
-    if(ya == head)
-        top_level = true;
-
-    // Insert
-    if(new_node -> key > pcurr -> key)
-        pcurr -> right = new_node;
-    else
-        pcurr -> left = new_node;
-    
-    // Update Balance
-    curr = ya;
-    while(curr != new_node)
-    {
-        if(curr -> key > new_node -> key)
-        {
-            curr -> balance += 1;
-            curr = curr -> left;
-        }
-        else
-        {
-            curr -> balance -= 1;
-            curr = curr -> right;
-        }
-    }
-
-    // Check If Rebalancing Is Nessecary
-
-    if(ya -> balance > -2 && ya -> balance < 2)
-        return head;
-    
-    // Find The Child Where The New Insertion Happend
-    Tnode* child = NULL;
-    if(new_node -> key > ya -> key)
-        child = ya -> right;
-    else
-        child = ya -> left;
-    // Rebalancing
-
-    // Same Direction Rebalance
-    if(ya -> balance == 2 && child -> balance == 1)
-    {
-        curr = CR(ya);
-        ya -> balance = 0;
-        child -> balance = 0;
-        printf("CR\n");
-    }
-    if(ya -> balance == -2 && child -> balance == -1)
-    {
-        printf("CCR at %d, Curr = %d\n", ya -> key, curr -> key);
-        curr = CCR(ya);
-        ya -> balance = 0;
-        child -> balance = 0;
-    }
-    // Opposite Direction Rebalance
-
-    if(pya == NULL)
-        head = curr;
-    else
-        if(new_node -> key < pya -> key)
-            pya -> left = curr;
-        else
-            pya -> right = curr;
-    
-
-    if(top_level)
-        return curr;
-    else
-        return head;
 }
 
 static void free_tree(Tnode* head)
 {
     if(head == NULL)
         return;
-
     free_tree(head -> left);
     free_tree(head -> right);
     free(head);
-
     return;
 }
 
-static Tnode* make_Tnode(FILE* fp, int* pass_ch)
+static void read_file(FILE* fp, int* pass_ch, int* pass_int, int* val, char* operation)
 {
-    int num;
-    char ch = 0;
+    *pass_int = fread(val, sizeof(*val), 1, fp);
+    *pass_ch = fread(operation, sizeof(*operation), 1, fp);
+    return;
+}
 
-    fread(&num, sizeof(num), 1, fp);
-    *pass_ch = fread(&ch, sizeof(ch), 1, fp);
+static void write_to_file(Tnode* head, FILE* fp)
+{
+    if(head == NULL)
+        return;
 
-    if(*pass_ch)
+    int val = head -> key;
+    fwrite(&val, sizeof(int), 1, fp);
+
+    char links = 0;
+    if(head -> right != NULL)
+        links += 1;
+    if(head -> left != NULL)
+        links += 2;
+
+    fputc(links, fp);
+    write_to_file(head -> left, fp);
+    write_to_file(head -> right, fp);
+    return;
+}
+
+static Tnode* create_eval_tree(FILE* fp)
+{
+    int key = 0;
+    int links = 0;
+
+    fread(&key, sizeof(int), 1, fp);
+    fread(&links, sizeof(char), 1, fp);
+
+    Tnode* head = malloc(sizeof(*head));
+    *head = (Tnode) {.left = NULL, .right = NULL, .key = key, .balance = 0};
+
+    if(links == 3)
     {
-        Tnode* new_tnode = malloc(sizeof(*new_tnode));
-        *new_tnode = (Tnode){.key = num, .balance = 0, .left = NULL, .right = NULL};
-        return new_tnode;     
+        head -> left = create_eval_tree(fp);
+        head -> right = create_eval_tree(fp);
     }
-    return NULL;
+    else if(links == 2)
+        head -> left = create_eval_tree(fp);
+    else if(links == 1)
+        head -> right = create_eval_tree(fp);
+    return head;
+}
+
+static void check_bst(Tnode* head, bool* is_bst)
+{
+    if(head == NULL)
+        return;
+
+    if(head -> left != NULL)
+    {
+        if(head -> key < head -> left -> key)
+            *is_bst = false;
+    }
+    if(head -> right != NULL)
+    {
+        if(head -> key > head -> right -> key)
+            *is_bst = false;
+    }
+    
+    check_bst(head -> left, is_bst);
+    check_bst(head -> right, is_bst);
+    return;
+}
+
+static int find_height(Tnode* head)
+{
+    if(head == NULL)
+        return 1;
+    
+    int left_height = find_height(head -> left);
+    int right_height = find_height(head -> right);
+
+    if(left_height > right_height)
+        return 1 + left_height;
+    else
+        return 1 + right_height; 
+}
+
+static void check_bal(Tnode* head, bool* is_bal)
+{
+    if(head == NULL)
+        return;
+
+    int left_bal = find_height(head -> left);
+    int right_bal = find_height(head -> right);
+    int balance = left_bal - right_bal;
+
+    if(balance > 1 || balance < -1)
+        *is_bal = false;
+
+    check_bal(head -> left, is_bal);
+    check_bal(head -> right, is_bal);
+
+    return; 
 }
 
 int main(int argc, char* argv[])
 {
-    FILE* fp = fopen(argv[1], "r");
-    int pass_ch;
-
-    Tnode* head_node = make_Tnode(fp, &pass_ch);
-
-    //while(!feof(fp))
-    for(int i = 5; i > 0; i--)
+    if(strcmp(argv[1], "-b") == 0)
     {
-        Tnode* new_tnode = make_Tnode(fp, &pass_ch);
-        if(pass_ch)
-            head_node = insert_to_tree(new_tnode, head_node);
-        print_tree(head_node);
-        printf("\n");
-    }
-    fclose(fp);
+        FILE* fp = fopen(argv[2], "r");
+        if(fp == NULL)
+        {
+            fprintf(stdout, "%d\n", -1);
+            return EXIT_FAILURE;     
+        }
 
+        int key;
+        char operation;
+        int pass_key;
+        int pass_op;
+
+        read_file(fp, &pass_op, &pass_key, &key, &operation);
+
+        Tnode* head_node;
+        if(pass_key)
+            head_node = make_Tnode(key);
+        else
+        {
+            fprintf(stdout, "%d\n", 0);
+            return EXIT_FAILURE;
+        }
+
+        while(!feof(fp))
+        {
+            read_file(fp, &pass_op, &pass_key, &key, &operation);
+            if(pass_op && pass_key)
+            {
+                if(operation == 'i')
+                    head_node = insert_to_tree(head_node, key);
+                if(operation == 'd')
+                    deletion(&head_node, head_node, NULL, key);
+            }
+        }
+        fclose(fp);
+        
+        fp = fopen(argv[3], "w");
+        if(fp == NULL)
+            return EXIT_FAILURE;
+
+        printf("\n\n\n");
+        print_tree(head_node);
+
+        write_to_file(head_node, fp);
+        fclose(fp);
+        free_tree(head_node);
+        fprintf(stdout, "%d\n", 1);
+        return EXIT_SUCCESS;     
+    }
+    if(strcmp(argv[1], "-e") == 0)
+    {
+        int can_file_open = 1;
+
+        FILE* fp = fopen(argv[2], "r");
+        if(fp == NULL)
+            can_file_open = -1;
+
+        Tnode* head = NULL;
+        bool is_bst = true;
+        bool is_bal = true;
+
+        head = create_eval_tree(fp);
+        check_bst(head, &is_bst);
+        check_bal(head, &is_bal);
+
+        free_tree(head);
+        fclose(fp);
+
+        int bst = 0;
+        if(is_bst)
+            bst = 1;
+
+        int bal = 0;
+        if(is_bal)
+            bal = 1;
+
+        fprintf(stdout, "%d %d %d\n", can_file_open, bst, bal);
+
+        if(can_file_open == 1)
+            return EXIT_SUCCESS;
+        else
+            return EXIT_FAILURE;
+    }
+    /*
+    Tnode* head_node;
+    
+    head_node = make_Tnode(3);
+    for(int i = 0; i < 3; i++)
+        head_node = insert_to_tree(head_node, 3);
+    for(int i = 0; i < 4; i++)
+        head_node = insert_to_tree(head_node, 1);
+    for(int i = 0; i < 4; i++)
+        head_node = insert_to_tree(head_node, 2);
+    for(int i = 0; i < 8; i++)
+        head_node = insert_to_tree(head_node, 4);
+    for(int i = 0; i < 4; i++)
+        head_node = insert_to_tree(head_node, 0);
+    head_node = insert_to_tree(head_node, 1);
+
+    deletion(&head_node, head_node, NULL, 0);
+    deletion(&head_node, head_node, NULL, 1);
+    deletion(&head_node, head_node, NULL, 2);
+    deletion(&head_node, head_node, NULL, 1);
+    deletion(&head_node, head_node, NULL, 1);
+    print_tree(head_node);
     free_tree(head_node);
+    */
 
     return EXIT_SUCCESS;
 }
