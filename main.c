@@ -6,6 +6,8 @@
 #include "hbt.h"
 #include "functions.h"
 
+static int find_height(Tnode* head);
+
 static Tnode* make_Tnode(int val)
 {
     Tnode* new_tnode = malloc(sizeof(*new_tnode));
@@ -13,6 +15,7 @@ static Tnode* make_Tnode(int val)
     return new_tnode;     
 }
 
+/*
 static void print_tree(Tnode* head)
 {
     if(head == NULL)
@@ -24,14 +27,34 @@ static void print_tree(Tnode* head)
     if(head -> left != NULL)
         links += 2;
 
-    printf("%d", head -> key);
-    printf(" BAL %d Links %d\n", head -> balance, links);
+    printf("%3d", head -> key);
+    if(head -> left != NULL)
+        printf("%3d,", head -> left -> key);
+    else
+        printf("  N,");
+
+    if(head -> right != NULL)
+        printf("%3d", head -> right -> key);
+    else
+        printf("  N");
+    printf(" BAL %3d", head -> balance);
+
+    int expected_L = find_height(head -> left);
+    int expected_R = find_height(head -> right);
+
+    int bal = expected_L - expected_R;
+    if(bal != head -> balance)
+        printf(" <------------------ expected %d", bal);
+
+    printf("\n");
+
 
     print_tree(head -> left);
     print_tree(head -> right);
 
     return;
 }
+*/
 
 static void free_tree(Tnode* head)
 {
@@ -180,7 +203,7 @@ int main(int argc, char* argv[])
             {
                 if(operation == 'i')
                     head_node = insert_to_tree(head_node, key);
-                if(operation == 'd')
+                else if(operation == 'd')
                     deletion(&head_node, head_node, NULL, key);
             }
         }
@@ -189,9 +212,6 @@ int main(int argc, char* argv[])
         fp = fopen(argv[3], "w");
         if(fp == NULL)
             return EXIT_FAILURE;
-
-        printf("\n\n\n");
-        print_tree(head_node);
 
         write_to_file(head_node, fp);
         fclose(fp);
@@ -211,12 +231,15 @@ int main(int argc, char* argv[])
         bool is_bst = true;
         bool is_bal = true;
 
-        head = create_eval_tree(fp);
-        check_bst(head, &is_bst);
-        check_bal(head, &is_bal);
+        if(can_file_open == 1)
+        {
+            head = create_eval_tree(fp);
+            check_bst(head, &is_bst);
+            check_bal(head, &is_bal);
 
-        free_tree(head);
-        fclose(fp);
+            free_tree(head);
+            fclose(fp);
+        }
 
         int bst = 0;
         if(is_bst)
@@ -233,30 +256,4 @@ int main(int argc, char* argv[])
         else
             return EXIT_FAILURE;
     }
-    /*
-    Tnode* head_node;
-    
-    head_node = make_Tnode(3);
-    for(int i = 0; i < 3; i++)
-        head_node = insert_to_tree(head_node, 3);
-    for(int i = 0; i < 4; i++)
-        head_node = insert_to_tree(head_node, 1);
-    for(int i = 0; i < 4; i++)
-        head_node = insert_to_tree(head_node, 2);
-    for(int i = 0; i < 8; i++)
-        head_node = insert_to_tree(head_node, 4);
-    for(int i = 0; i < 4; i++)
-        head_node = insert_to_tree(head_node, 0);
-    head_node = insert_to_tree(head_node, 1);
-
-    deletion(&head_node, head_node, NULL, 0);
-    deletion(&head_node, head_node, NULL, 1);
-    deletion(&head_node, head_node, NULL, 2);
-    deletion(&head_node, head_node, NULL, 1);
-    deletion(&head_node, head_node, NULL, 1);
-    print_tree(head_node);
-    free_tree(head_node);
-    */
-
-    return EXIT_SUCCESS;
 }

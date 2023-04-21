@@ -240,10 +240,11 @@ static Tnode* rebalance(Tnode* parent, Tnode* child)
     return parent;
 }
 
-static void Case3Del(Tnode* curr, Tnode* prev, int* swap_val, bool* pass)
+static int Case3Del(Tnode* curr, Tnode* prev, int* swap_val, bool* pass)
 {
+    int height_change;
     if(curr -> right != NULL)
-        Case3Del(curr -> right, curr, swap_val, pass);
+        height_change = Case3Del(curr -> right, curr, swap_val, pass);
 
     if(*pass == false)
     {
@@ -251,11 +252,13 @@ static void Case3Del(Tnode* curr, Tnode* prev, int* swap_val, bool* pass)
         prev -> right = NULL;
         free(curr);
         *pass = true;
-        return;
+        return 1;
     }
     else
     {
-        curr -> balance += 1;
+        int balance_before = curr -> balance;
+
+        curr -> balance += height_change;
 
         if(curr -> balance == 2 || curr -> balance == -2)
         {
@@ -266,7 +269,6 @@ static void Case3Del(Tnode* curr, Tnode* prev, int* swap_val, bool* pass)
             else
                 child = parent -> right;
 
-            // is changed in here from -1 to 0
             curr = rebalance(parent, child);
 
             if (parent -> key > prev -> key)
@@ -275,8 +277,15 @@ static void Case3Del(Tnode* curr, Tnode* prev, int* swap_val, bool* pass)
                 prev -> left = curr;
         }
 
-    return;
-    
+        int balance_after = curr -> balance;
+
+        if(balance_before == -1 && balance_after == 0)
+            return 1;
+
+        if(balance_before == 1 && balance_after == 0)
+            return 1;
+
+        return 0; 
     }
 }
 
@@ -338,10 +347,34 @@ int deletion(Tnode** head, Tnode* curr, Tnode* prev, int key)
             }
             else
             {
+                int L_before = curr -> left -> balance; 
+
                 int swap_val;
                 bool pass = false;
                 Case3Del(curr -> left, NULL, &swap_val, &pass);
                 curr -> key = swap_val;
+
+                int L_after = curr -> left -> balance; 
+
+                if(L_before == -1 && L_after == 0)
+                    curr -> balance += -1;
+            }
+
+            if(curr -> balance == 2 || curr -> balance == -2)
+            {
+                Tnode* parent = curr;
+                Tnode* child;
+                if(curr -> balance == 2)
+                    child = parent -> left;
+                else
+                    child = parent -> right;
+
+                curr = rebalance(parent, child);
+
+                if (parent -> key > prev -> key)
+                    prev -> right = curr;
+                else
+                    prev -> left = curr;
             }
 
             int balance_after = curr -> balance;
