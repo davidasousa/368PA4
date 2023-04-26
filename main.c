@@ -15,47 +15,6 @@ static Tnode* make_Tnode(int val)
     return new_tnode;     
 }
 
-/*
-static void print_tree(Tnode* head)
-{
-    if(head == NULL)
-        return;
-
-    char links = 0;
-    if(head -> right != NULL)
-        links += 1;
-    if(head -> left != NULL)
-        links += 2;
-
-    printf("%3d", head -> key);
-    if(head -> left != NULL)
-        printf("%3d,", head -> left -> key);
-    else
-        printf("  N,");
-
-    if(head -> right != NULL)
-        printf("%3d", head -> right -> key);
-    else
-        printf("  N");
-    printf(" BAL %3d", head -> balance);
-
-    int expected_L = find_height(head -> left);
-    int expected_R = find_height(head -> right);
-
-    int bal = expected_L - expected_R;
-    if(bal != head -> balance)
-        printf(" <------------------ expected %d", bal);
-
-    printf("\n");
-
-
-    print_tree(head -> left);
-    print_tree(head -> right);
-
-    return;
-}
-*/
-
 static void free_tree(Tnode* head)
 {
     if(head == NULL)
@@ -249,7 +208,7 @@ int main(int argc, char* argv[])
         if(is_bal)
             bal = 1;
 
-        fprintf(stdout, "%d %d %d\n", can_file_open, bst, bal);
+        fprintf(stdout, "%d,%d,%d\n", can_file_open, bst, bal);
 
         if(can_file_open == 1)
             return EXIT_SUCCESS;
